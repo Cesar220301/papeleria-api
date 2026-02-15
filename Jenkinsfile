@@ -53,6 +53,7 @@ pipeline {
             sleep 3
           done
         '''
+        sh 'npx prisma migrate deploy'
         sh 'npm run test:ci'
       }
     }
