@@ -78,6 +78,16 @@ pipeline {
         '''
       }
     }
+
+    stage('Deploy Local Container') {
+      steps {
+        sh '''
+          set -e
+          docker compose up -d --build api
+          docker compose ps
+        '''
+      }
+    }
   }
 
   post {

@@ -155,6 +155,8 @@ Resultado esperado por build:
   - `papeleria-api:latest`
   - `papeleria-api:build-<BUILD_NUMBER>`
   - `papeleria-api:<git_sha_short>`
+- Si tests pasan, despliega automaticamente en Docker local:
+  - `docker compose up -d --build api`
 
 ## Reglas de negocio
 
