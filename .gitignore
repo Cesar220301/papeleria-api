@@ -1,0 +1,6 @@
+node_modules/
+reports/
+mysql-ci.log
+.env
+.env.local
+infra/jenkins/.env

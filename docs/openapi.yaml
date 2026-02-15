@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: API REST de Papeleria
+  version: 1.1.0
+  description: |
+    API para gestionar productos y ventas de una papeleria.
+    Incluye control de stock y calculo automatico de IVA al 16%.
+servers:
+  - url: http://localhost:3000
+    description: Entorno local
+paths:
+  /api/v1/health:
+    get:
+      summary: Estado de la API
+      tags: [Health]
+      responses:
+        '200':
+          description: API operativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/productos:
+    get:
+      summary: Listar productos (paginado)
+      tags: [Productos]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Lista paginada de productos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Producto'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                required: [data, pagination]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Crear producto
+      tags: [Productos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoCreateInput'
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Producto'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/productos/{id}:
+    get:
+      summary: Obtener producto por id
+      tags: [Productos]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Producto'
+                required: [data]
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Reemplazar producto
+      tags: [Productos]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoCreateInput'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Producto'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Actualizar parcialmente producto
+      tags: [Productos]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductoPatchInput'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Producto'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Eliminar producto
+      tags: [Productos]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Producto eliminado
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/ventas:
+    get:
+      summary: Listar ventas (paginado)
+      tags: [Ventas]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Lista paginada de ventas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Venta'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                required: [data, pagination]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Crear venta
+      tags: [Ventas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VentaCreateInput'
+      responses:
+        '201':
+          description: Venta creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Venta'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/ventas/{id}:
+    get:
+      summary: Obtener venta por id
+      tags: [Ventas]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Venta encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Venta'
+                required: [data]
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      summary: Reemplazar venta
+      tags: [Ventas]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VentaCreateInput'
+      responses:
+        '200':
+          description: Venta actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Venta'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    patch:
+      summary: Actualizar parcialmente venta
+      tags: [Ventas]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VentaPatchInput'
+      responses:
+        '200':
+          description: Venta actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Venta'
+                required: [data]
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      summary: Eliminar venta
+      tags: [Ventas]
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Venta eliminada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+
+  responses:
+    ValidationError:
+      description: Datos invalidos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Conflicto de negocio
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+      required: [data]
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+      required: [page, limit, total, totalPages, hasNext, hasPrev]
+
+    Producto:
+      type: object
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        precio:
+          type: number
+          format: float
+        stock:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, nombre, precio, stock, createdAt, updatedAt]
+
+    ProductoCreateInput:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 255
+        precio:
+          type: number
+          exclusiveMinimum: 0
+        stock:
+          type: integer
+          minimum: 0
+      required: [nombre, precio, stock]
+      additionalProperties: false
+
+    ProductoPatchInput:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 255
+        precio:
+          type: number
+          exclusiveMinimum: 0
+        stock:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+
+    Venta:
+      type: object
+      properties:
+        id:
+          type: integer
+        productoId:
+          type: integer
+        cantidadVendida:
+          type: integer
+        subtotal:
+          type: number
+          format: float
+        iva:
+          type: number
+          format: float
+        total:
+          type: number
+          format: float
+        fecha:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, productoId, cantidadVendida, subtotal, iva, total, fecha, createdAt, updatedAt]
+
+    VentaCreateInput:
+      type: object
+      properties:
+        productoId:
+          type: integer
+          minimum: 1
+        cantidadVendida:
+          type: integer
+          minimum: 1
+        fecha:
+          type: string
+          format: date-time
+      required: [productoId, cantidadVendida]
+      additionalProperties: false
+
+    VentaPatchInput:
+      type: object
+      properties:
+        productoId:
+          type: integer
+          minimum: 1
+        cantidadVendida:
+          type: integer
+          minimum: 1
+        fecha:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+      required: [error]
