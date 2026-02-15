@@ -83,7 +83,7 @@ pipeline {
       steps {
         sh '''
           set -e
-          docker compose up -d --build api
+          docker compose up -d --build --no-deps api
           docker compose ps
         '''
       }
