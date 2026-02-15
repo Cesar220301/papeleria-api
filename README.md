@@ -140,6 +140,11 @@ Configuracion del job:
 2. Apuntar al repo que contiene este proyecto.
 3. Usar `Jenkinsfile` del root.
 
+Ejecucion automatica:
+
+- El `Jenkinsfile` incluye `pollSCM('H/2 * * * *')`.
+- Jenkins revisa cambios en `main` cada ~2 minutos y, si detecta commit nuevo, dispara build automaticamente.
+
 Resultado esperado por build:
 
 - Ejecuta `npm ci`

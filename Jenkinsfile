@@ -3,6 +3,12 @@ pipeline {
 
   options {
     timestamps()
+    disableConcurrentBuilds()
+  }
+
+  triggers {
+    // Revisa cambios en el repo cada 2 minutos y dispara build automatico.
+    pollSCM('H/2 * * * *')
   }
 
   environment {
