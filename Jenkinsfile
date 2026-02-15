@@ -83,8 +83,9 @@ pipeline {
       steps {
         sh '''
           set -e
-          docker compose up -d --build --no-deps api
-          docker compose ps
+          docker rm -f papeleria_api || true
+          docker compose -p backend up -d --build --no-deps api
+          docker compose -p backend ps
         '''
       }
     }
