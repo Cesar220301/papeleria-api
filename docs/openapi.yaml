@@ -1,10 +1,11 @@
 openapi: 3.0.3
 info:
   title: API REST de Papeleria
-  version: 1.1.0
+  version: 1.2.0
   description: |
     API para gestionar productos y ventas de una papeleria.
     Incluye control de stock y calculo automatico de IVA al 16%.
+    Una venta puede tener multiples productos mediante items de detalle.
 servers:
   - url: http://localhost:3000
     description: Entorno local
@@ -422,10 +423,6 @@ components:
       properties:
         id:
           type: integer
-        productoId:
-          type: integer
-        cantidadVendida:
-          type: integer
         subtotal:
           type: number
           format: float
@@ -438,38 +435,85 @@ components:
         fecha:
           type: string
           format: date-time
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/VentaItem'
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-      required: [id, productoId, cantidadVendida, subtotal, iva, total, fecha, createdAt, updatedAt]
+      required: [id, subtotal, iva, total, fecha, items, createdAt, updatedAt]
+
+    VentaItem:
+      type: object
+      properties:
+        productoId:
+          type: integer
+          minimum: 1
+        cantidad:
+          type: integer
+          minimum: 1
+        precioUnitario:
+          type: number
+          format: float
+        subtotal:
+          type: number
+          format: float
+        iva:
+          type: number
+          format: float
+        total:
+          type: number
+          format: float
+      required: [productoId, cantidad, precioUnitario, subtotal, iva, total]
 
     VentaCreateInput:
       type: object
       properties:
-        productoId:
-          type: integer
-          minimum: 1
-        cantidadVendida:
-          type: integer
-          minimum: 1
+        items:
+          type: array
+          minItems: 1
+          description: Cada producto debe aparecer una sola vez por venta.
+          items:
+            type: object
+            properties:
+              productoId:
+                type: integer
+                minimum: 1
+              cantidad:
+                type: integer
+                minimum: 1
+            required: [productoId, cantidad]
+            additionalProperties: false
         fecha:
           type: string
           format: date-time
-      required: [productoId, cantidadVendida]
+      required: [items]
       additionalProperties: false
 
     VentaPatchInput:
       type: object
+      minProperties: 1
       properties:
-        productoId:
-          type: integer
-          minimum: 1
-        cantidadVendida:
-          type: integer
-          minimum: 1
+        items:
+          type: array
+          minItems: 1
+          description: Si se envia, reemplaza completamente los items actuales.
+          items:
+            type: object
+            properties:
+              productoId:
+                type: integer
+                minimum: 1
+              cantidad:
+                type: integer
+                minimum: 1
+            required: [productoId, cantidad]
+            additionalProperties: false
         fecha:
           type: string
           format: date-time

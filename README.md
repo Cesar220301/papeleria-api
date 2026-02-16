@@ -27,6 +27,7 @@ La API queda en `http://localhost:3000`.
 - Swagger UI en ejecucion: `http://localhost:3000/api-docs`
 - YAML servido por la API: `http://localhost:3000/api-docs/openapi.yaml`
 - Los listados `GET /api/v1/productos` y `GET /api/v1/ventas` aceptan `page` y `limit`.
+- Comandos locales de operacion: `docs/comandos-locales.md`
 
 ## Endpoints
 
@@ -59,7 +60,7 @@ Crear venta:
 ```bash
 curl -X POST http://localhost:3000/api/v1/ventas \
   -H "Content-Type: application/json" \
-  -d '{"productoId":1,"cantidadVendida":2}'
+  -d '{"items":[{"productoId":1,"cantidad":2},{"productoId":2,"cantidad":1}]}'
 ```
 
 Listar productos paginados:
@@ -161,7 +162,8 @@ Resultado esperado por build:
 ## Reglas de negocio
 
 - IVA del 16% calculado automaticamente.
-- La venta descuenta stock.
+- Una venta puede incluir multiples productos en `items`.
+- La venta descuenta stock de cada item.
 - Si no hay stock suficiente, retorna `409`.
-- Al eliminar una venta se repone el stock.
+- Al eliminar una venta se repone el stock de todos sus items.
 - No se permite eliminar productos con ventas relacionadas (`409`).

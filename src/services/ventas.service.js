@@ -3,10 +3,11 @@ const prisma = require('../lib/prisma');
 const { AppError } = require('../errors/app-error');
 
 const IVA_RATE = new Prisma.Decimal(process.env.IVA_RATE || '0.16');
+const DECIMAL_ZERO = new Prisma.Decimal(0);
 
-function calcularTotales(precio, cantidadVendida) {
-  const subtotal = precio
-    .mul(cantidadVendida)
+function calcularTotales(precioUnitario, cantidad) {
+  const subtotal = precioUnitario
+    .mul(cantidad)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
   const iva = subtotal
@@ -20,11 +21,131 @@ function calcularTotales(precio, cantidadVendida) {
   return { subtotal, iva, total };
 }
 
+function agregarCantidadesPorProducto(items) {
+  const cantidades = new Map();
+
+  for (const item of items) {
+    const acumulado = cantidades.get(item.productoId) || 0;
+    cantidades.set(item.productoId, acumulado + item.cantidad);
+  }
+
+  return cantidades;
+}
+
+function sumarTotales(detalles) {
+  return detalles.reduce((acumulado, detalle) => ({
+    subtotal: acumulado.subtotal
+      .plus(detalle.subtotal)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+    iva: acumulado.iva
+      .plus(detalle.iva)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+    total: acumulado.total
+      .plus(detalle.total)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+  }), {
+    subtotal: DECIMAL_ZERO,
+    iva: DECIMAL_ZERO,
+    total: DECIMAL_ZERO
+  });
+}
+
+async function prepararDetalles(tx, items) {
+  const cantidadesPorProducto = agregarCantidadesPorProducto(items);
+  const productoIds = Array.from(cantidadesPorProducto.keys());
+
+  const productos = await tx.producto.findMany({
+    where: { id: { in: productoIds } }
+  });
+
+  const productosPorId = new Map(productos.map((producto) => [producto.id, producto]));
+
+  if (productos.length !== productoIds.length) {
+    const productoFaltante = productoIds.find((id) => !productosPorId.has(id));
+    throw new AppError(404, 'NOT_FOUND', `Producto no encontrado: ${productoFaltante}`);
+  }
+
+  const detalles = [];
+
+  for (const [productoId, cantidad] of cantidadesPorProducto.entries()) {
+    const producto = productosPorId.get(productoId);
+
+    if (producto.stock < cantidad) {
+      throw new AppError(409, 'CONFLICT', 'Stock insuficiente para registrar la venta');
+    }
+
+    const precioUnitario = new Prisma.Decimal(producto.precio);
+    const { subtotal, iva, total } = calcularTotales(precioUnitario, cantidad);
+
+    detalles.push({
+      productoId,
+      cantidad,
+      precioUnitario,
+      subtotal,
+      iva,
+      total
+    });
+  }
+
+  return detalles;
+}
+
+async function descontarStock(tx, detalles) {
+  for (const detalle of detalles) {
+    const updated = await tx.producto.updateMany({
+      where: {
+        id: detalle.productoId,
+        stock: {
+          gte: detalle.cantidad
+        }
+      },
+      data: {
+        stock: {
+          decrement: detalle.cantidad
+        }
+      }
+    });
+
+    if (updated.count !== 1) {
+      throw new AppError(409, 'CONFLICT', 'Stock insuficiente para registrar la venta');
+    }
+  }
+}
+
+async function reponerStock(tx, detalles) {
+  for (const detalle of detalles) {
+    await tx.producto.update({
+      where: { id: detalle.productoId },
+      data: {
+        stock: {
+          increment: detalle.cantidad
+        }
+      }
+    });
+  }
+}
+
+async function obtenerVentaConDetalles(tx, ventaId) {
+  return tx.venta.findUnique({
+    where: { id: ventaId },
+    include: {
+      detalles: {
+        orderBy: { id: 'asc' }
+      }
+    }
+  });
+}
+
 async function listarVentasPaginadas({ skip, limit }) {
   return prisma.venta.findMany({
     orderBy: { id: 'asc' },
     skip,
-    take: limit
+    take: limit,
+    include: {
+      detalles: {
+        orderBy: { id: 'asc' }
+      }
+    }
   });
 }
 
@@ -33,9 +154,7 @@ async function obtenerTotalVentas() {
 }
 
 async function obtenerVentaPorId(id) {
-  const venta = await prisma.venta.findUnique({
-    where: { id }
-  });
+  const venta = await obtenerVentaConDetalles(prisma, id);
 
   if (!venta) {
     throw new AppError(404, 'NOT_FOUND', 'Venta no encontrada');
@@ -46,24 +165,11 @@ async function obtenerVentaPorId(id) {
 
 async function crearVenta(data) {
   return prisma.$transaction(async (tx) => {
-    const producto = await tx.producto.findUnique({
-      where: { id: data.productoId }
-    });
-
-    if (!producto) {
-      throw new AppError(404, 'NOT_FOUND', 'Producto no encontrado');
-    }
-
-    if (producto.stock < data.cantidadVendida) {
-      throw new AppError(409, 'CONFLICT', 'Stock insuficiente para registrar la venta');
-    }
-
-    const { subtotal, iva, total } = calcularTotales(producto.precio, data.cantidadVendida);
+    const detalles = await prepararDetalles(tx, data.items);
+    const { subtotal, iva, total } = sumarTotales(detalles);
 
     const venta = await tx.venta.create({
       data: {
-        productoId: data.productoId,
-        cantidadVendida: data.cantidadVendida,
         subtotal,
         iva,
         total,
@@ -71,99 +177,93 @@ async function crearVenta(data) {
       }
     });
 
-    await tx.producto.update({
-      where: { id: data.productoId },
-      data: {
-        stock: {
-          decrement: data.cantidadVendida
-        }
-      }
+    await tx.ventaDetalle.createMany({
+      data: detalles.map((detalle) => ({
+        ventaId: venta.id,
+        productoId: detalle.productoId,
+        cantidad: detalle.cantidad,
+        precioUnitario: detalle.precioUnitario,
+        subtotal: detalle.subtotal,
+        iva: detalle.iva,
+        total: detalle.total
+      }))
     });
 
-    return venta;
+    await descontarStock(tx, detalles);
+
+    return obtenerVentaConDetalles(tx, venta.id);
   });
 }
 
 async function actualizarVenta(ventaId, payload) {
   return prisma.$transaction(async (tx) => {
-    const ventaActual = await tx.venta.findUnique({
-      where: { id: ventaId }
-    });
+    const ventaActual = await obtenerVentaConDetalles(tx, ventaId);
 
     if (!ventaActual) {
       throw new AppError(404, 'NOT_FOUND', 'Venta no encontrada');
     }
 
-    const nuevoProductoId = payload.productoId ?? ventaActual.productoId;
-    const nuevaCantidadVendida = payload.cantidadVendida ?? ventaActual.cantidadVendida;
-    const nuevaFecha = payload.fecha ? new Date(payload.fecha) : ventaActual.fecha;
+    const nuevaFecha = payload.fecha ? new Date(payload.fecha) : undefined;
 
-    await tx.producto.update({
-      where: { id: ventaActual.productoId },
-      data: {
-        stock: {
-          increment: ventaActual.cantidadVendida
+    if (!payload.items) {
+      return tx.venta.update({
+        where: { id: ventaId },
+        data: {
+          fecha: nuevaFecha
+        },
+        include: {
+          detalles: {
+            orderBy: { id: 'asc' }
+          }
         }
-      }
-    });
-
-    const productoDestino = await tx.producto.findUnique({
-      where: { id: nuevoProductoId }
-    });
-
-    if (!productoDestino) {
-      throw new AppError(404, 'NOT_FOUND', 'Producto no encontrado para la venta');
+      });
     }
 
-    if (productoDestino.stock < nuevaCantidadVendida) {
-      throw new AppError(409, 'CONFLICT', 'Stock insuficiente para actualizar la venta');
-    }
+    await reponerStock(tx, ventaActual.detalles);
+    const detalles = await prepararDetalles(tx, payload.items);
+    const { subtotal, iva, total } = sumarTotales(detalles);
 
-    const { subtotal, iva, total } = calcularTotales(productoDestino.precio, nuevaCantidadVendida);
-
-    const ventaActualizada = await tx.venta.update({
+    await tx.venta.update({
       where: { id: ventaId },
       data: {
-        productoId: nuevoProductoId,
-        cantidadVendida: nuevaCantidadVendida,
         subtotal,
         iva,
         total,
-        fecha: nuevaFecha
+        fecha: nuevaFecha || ventaActual.fecha
       }
     });
 
-    await tx.producto.update({
-      where: { id: nuevoProductoId },
-      data: {
-        stock: {
-          decrement: nuevaCantidadVendida
-        }
-      }
+    await tx.ventaDetalle.deleteMany({
+      where: { ventaId }
     });
 
-    return ventaActualizada;
+    await tx.ventaDetalle.createMany({
+      data: detalles.map((detalle) => ({
+        ventaId,
+        productoId: detalle.productoId,
+        cantidad: detalle.cantidad,
+        precioUnitario: detalle.precioUnitario,
+        subtotal: detalle.subtotal,
+        iva: detalle.iva,
+        total: detalle.total
+      }))
+    });
+
+    await descontarStock(tx, detalles);
+
+    return obtenerVentaConDetalles(tx, ventaId);
   });
 }
 
 async function eliminarVenta(ventaId) {
   return prisma.$transaction(async (tx) => {
-    const venta = await tx.venta.findUnique({
-      where: { id: ventaId }
-    });
+    const venta = await obtenerVentaConDetalles(tx, ventaId);
 
     if (!venta) {
       throw new AppError(404, 'NOT_FOUND', 'Venta no encontrada');
     }
 
-    await tx.producto.update({
-      where: { id: venta.productoId },
-      data: {
-        stock: {
-          increment: venta.cantidadVendida
-        }
-      }
-    });
+    await reponerStock(tx, venta.detalles);
 
     await tx.venta.delete({
       where: { id: ventaId }

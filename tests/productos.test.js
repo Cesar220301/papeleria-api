@@ -30,7 +30,7 @@ describe('Productos API', () => {
 
     await request(app)
       .post('/api/v1/ventas')
-      .send({ productoId: producto.id, cantidadVendida: 2 })
+      .send({ items: [{ productoId: producto.id, cantidad: 2 }] })
       .expect(201);
 
     const response = await request(app).delete(`/api/v1/productos/${producto.id}`);
