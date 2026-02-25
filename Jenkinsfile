@@ -83,6 +83,9 @@ pipeline {
       steps {
         sh '''
           set -e
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
           docker rm -f papeleria_api || true
           docker compose -p backend up -d --build --no-deps api
           docker compose -p backend ps
