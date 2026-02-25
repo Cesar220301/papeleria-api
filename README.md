@@ -9,8 +9,16 @@ API REST con Express + Prisma + MySQL para gestionar productos y ventas de una p
 
 ## Variables de entorno
 
-- `.env`: ejecucion local
-- `.env.docker`: ejecucion en contenedores
+- `.env`: configuracion activa (local y docker)
+- `.env.example`: plantilla para crear `.env`
+- `CORS_ORIGIN`: origenes permitidos separados por coma (ej: `http://localhost:5173,http://localhost:3000`) o `*`
+- `CORS_CREDENTIALS`: `true` para enviar cookies/credenciales, `false` por defecto
+
+Crear archivo local:
+
+```bash
+cp .env.example .env
+```
 
 ## Levantar con Docker
 

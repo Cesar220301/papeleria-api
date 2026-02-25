@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const fs = require('fs');
 const morgan = require('morgan');
 const path = require('path');
@@ -9,7 +10,24 @@ const ventasRoutes = require('./routes/ventas.routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/error-handler');
 
 const app = express();
+const corsOrigins = process.env.CORS_ORIGIN;
+const corsCredentials = process.env.CORS_CREDENTIALS === 'true';
+const parsedOrigins = corsOrigins
+  ? corsOrigins.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
+const allowsAnyOrigin = parsedOrigins.length === 0 || parsedOrigins.includes('*');
 
+let corsOriginOption = allowsAnyOrigin ? '*' : parsedOrigins;
+if (corsCredentials && allowsAnyOrigin) {
+  corsOriginOption = true;
+}
+
+const corsOptions = {
+  origin: corsOriginOption,
+  credentials: corsCredentials
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 

@@ -9,4 +9,12 @@ describe('GET /api/v1/health', () => {
     expect(response.body.data.status).toBe('ok');
     expect(response.body.meta).toBeUndefined();
   });
+
+  it('debe incluir headers CORS', async () => {
+    const response = await request(app)
+      .get('/api/v1/health')
+      .set('Origin', 'http://localhost:5173');
+
+    expect(response.headers['access-control-allow-origin']).toBe('*');
+  });
 });
