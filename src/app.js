@@ -35,11 +35,11 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/api/v1', (req, res, next) => {
-  if (apiDelayMs === 0) {
-    return next();
-  }
+  // if (apiDelayMs === 0) {
+  //   return next();
+  // }
 
-  setTimeout(next, apiDelayMs);
+  setTimeout(next, 1500);
 });
 
 const openApiPath = path.resolve(__dirname, '../docs/openapi.yaml');
