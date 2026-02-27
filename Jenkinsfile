@@ -4,6 +4,8 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+    timeout(time: 45, unit: 'MINUTES')
   }
 
   triggers {
@@ -27,12 +29,20 @@ pipeline {
     }
 
     stage('Install') {
+      options {
+        timeout(time: 12, unit: 'MINUTES')
+      }
       steps {
-        sh 'npm ci'
+        retry(2) {
+          sh 'npm ci --no-audit --no-fund'
+        }
       }
     }
 
     stage('Test') {
+      options {
+        timeout(time: 20, unit: 'MINUTES')
+      }
       steps {
         sh 'docker compose -f "$CI_COMPOSE_FILE" up -d mysql'
         sh '''
@@ -65,6 +75,9 @@ pipeline {
     }
 
     stage('Build Local Image') {
+      options {
+        timeout(time: 15, unit: 'MINUTES')
+      }
       steps {
         sh '''
           set -e
@@ -80,6 +93,9 @@ pipeline {
     }
 
     stage('Deploy Local Container') {
+      options {
+        timeout(time: 12, unit: 'MINUTES')
+      }
       steps {
         sh '''
           set -e
