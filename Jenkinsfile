@@ -106,7 +106,7 @@ pipeline {
           # Completa .env con variables nuevas agregadas en .env.example sin sobreescribir las existentes.
           while IFS= read -r line || [ -n "$line" ]; do
             case "$line" in
-              ''|\#*) continue ;;
+              ''|[#]*) continue ;;
             esac
 
             key="${line%%=*}"
