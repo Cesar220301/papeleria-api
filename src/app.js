@@ -26,10 +26,21 @@ const corsOptions = {
   origin: corsOriginOption,
   credentials: corsCredentials
 };
+const configuredApiDelayMs = Number(process.env.API_DELAY_MS || 0);
+const apiDelayMs = process.env.NODE_ENV === 'test'
+  ? 0
+  : (Number.isFinite(configuredApiDelayMs) ? Math.max(configuredApiDelayMs, 0) : 0);
 
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/api/v1', (req, res, next) => {
+  if (apiDelayMs === 0) {
+    return next();
+  }
+
+  setTimeout(next, apiDelayMs);
+});
 
 const openApiPath = path.resolve(__dirname, '../docs/openapi.yaml');
 const openApiDocument = yaml.load(fs.readFileSync(openApiPath, 'utf8'));
