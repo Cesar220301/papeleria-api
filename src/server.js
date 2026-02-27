@@ -1,5 +1,9 @@
+const path = require('path');
+const dotenv = require('dotenv');
 const app = require('./app');
 const prisma = require('./lib/prisma');
+
+dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 
 const PORT = Number(process.env.PORT || 3000);
 

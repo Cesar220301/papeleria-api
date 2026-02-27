@@ -86,9 +86,21 @@ pipeline {
           if [ ! -f .env ]; then
             cp .env.example .env
           fi
-          docker rm -f papeleria_api || true
-          docker compose -p backend up -d --build --no-deps api
-          docker compose -p backend ps
+
+          # Completa .env con variables nuevas agregadas en .env.example sin sobreescribir las existentes.
+          while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+              ''|#*) continue ;;
+            esac
+
+            key="${line%%=*}"
+            if ! grep -q "^${key}=" .env; then
+              echo "$line" >> .env
+            fi
+          done < .env.example
+
+          docker compose -p backend up -d --build --no-deps --force-recreate api
+          docker compose -p backend ps api
         '''
       }
     }
