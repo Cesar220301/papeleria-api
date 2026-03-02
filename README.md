@@ -1,6 +1,6 @@
 # API REST de Papeleria | Realizado con IA
 
-API REST con Express + Prisma + MySQL para gestionar productos y ventas de una papeleria y el front que consume esto esta en https://github.com/Cesar220301/papeleria-front (Sin IA).
+API REST con Express + Prisma + MySQL para gestionar productos y ventas de una papeleria y el front(SIN IA) que consume esto esta en https://github.com/Cesar220301/papeleria-front.
 
 ## Requisitos
 
